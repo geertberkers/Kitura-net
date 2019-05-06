@@ -130,6 +130,24 @@ public class HTTP {
     }
     
     /**
+     Create a new `ClientRequest` using a list of (ssl)options.
+     
+     - Parameter options: a list of `ClientRequest.Options`.
+     - Parameter callback: closure to run after the request.
+     - Returns: a `ClientRequest` instance
+     
+     ### Usage Example: ###
+     ````swift
+     let request = HTTP.request([ClientRequest.Options], [ClientRequest.SSLOptions]) {response in
+     ...
+     }
+     ````
+     */
+    public static func request(_ options: [ClientRequest.Options], _ sslOptions: [ClientRequest.SSLOptions], callback: @escaping ClientRequest.Callback) -> ClientRequest {
+        return ClientRequest(options: options, sslOptions: sslOptions, callback: callback)
+    }
+    
+    /**
     Get a `ClientRequest` using URL.
     
     - Parameter url: URL address for the request.
