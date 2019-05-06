@@ -146,6 +146,9 @@ public class ClientRequest {
     /// Should SSL verification be disabled
     private var disableSSLVerification = false
 
+    /// Should Verbose logging be enabled
+    private var enableVerboseLogging = false
+
     /// Should HTTP/2 protocol be used
     private var useHTTP2 = false
     
@@ -159,6 +162,34 @@ public class ClientRequest {
     /// Data that represents the "HTTP/2.0 " (with a minor) header status line prefix
     fileprivate static let Http2StatusLineVersionWithMinor = "HTTP/2.0 ".data(using: .utf8)!
 
+    /// The format of the SSL client certificate
+    public private(set) var sslCertificateFormat: String = "PEM"
+    
+    /// The filename of the SSL client certificate
+    public private(set) var sslCertificate: String?
+    
+    /// The filename of the private key for the SSL client certificate
+    public private(set) var sslKey: String?
+    
+    /// The private key passphrase
+    public private(set) var sslKeyPassphrase: String?
+    
+    /// Client request option enum
+    public enum SSLOptions {
+        
+        /// Specifies the format of the SSL client certificate
+        case sslCertificateFormat(String)
+        
+        /// Specifies the filename of the SSL client certificate
+        case sslCertificate(String)
+        
+        /// Specifies the filename of the private key for the SSL client certificate
+        case sslKey(String)
+        
+        /// Specifies the private key passphrase
+        case sslKeyPassphrase(String)
+    }
+    
     /**
     Client request options enum. This allows the client to specify certain parameteres such as HTTP headers, HTTP methods, host names, and SSL credentials.
     
@@ -214,6 +245,11 @@ public class ClientRequest {
         /// If present, the client will try to use HTTP/2 protocol for the connection.
         case useHTTP2
 
+        /// If present, CURL will log using verbose level.
+        ///
+        /// - Note: This is very useful for debugging the Mutual TLS connection
+        case enableVerboseLogging
+        
     }
 
     /**
@@ -245,7 +281,7 @@ public class ClientRequest {
     /// - Parameter options: An array of `Options' describing the request.
     /// - Parameter unixDomainSocketPath: Specifies the path of a Unix domain socket that the client should connect to.
     /// - Parameter callback: The closure of type `Callback` to be used for the callback.
-    init(options: [Options], unixDomainSocketPath: String? = nil, callback: @escaping Callback) {
+    init(options: [Options], unixDomainSocketPath: String? = nil, sslOptions: [SSLOptions] = [], callback: @escaping Callback) {
 
         self.unixDomainSocketPath = unixDomainSocketPath
         self.callback = callback
@@ -258,7 +294,7 @@ public class ClientRequest {
         for option in options  {
             switch(option) {
 
-                case .method, .headers, .maxRedirects, .disableSSLVerification, .useHTTP2:
+                case .method, .headers, .maxRedirects, .disableSSLVerification, .useHTTP2, .enableVerboseLogging:
                     // call set() for Options that do not construct the URL
                     set(option)
                 case .schema(var schema):
@@ -281,6 +317,10 @@ public class ClientRequest {
                 case .password(let password):
                     self.password = password
             }
+        }
+        
+        for sslOption in sslOptions {
+            set(sslOption)
         }
 
         // Adding support for Basic HTTP authentication
@@ -324,11 +364,29 @@ public class ClientRequest {
             self.maxRedirects = maxRedirects
         case .disableSSLVerification:
             self.disableSSLVerification = true
+        case .enableVerboseLogging:
+            self.enableVerboseLogging = true
         case .useHTTP2:
             self.useHTTP2 = true
         }
     }
 
+    /// Set a single ssloption in the request.  URL parameters must be set in init()
+    ///
+    /// - Parameter option: an `SSLOption` instance describing the change to be made to the request
+    public func set(_ sslOption: SSLOptions) {
+        
+        switch(sslOption) {
+        case .sslCertificateFormat(let format):
+            self.sslCertificateFormat = format
+        case .sslCertificate(let sslCertificate):
+            self.sslCertificate = sslCertificate
+        case .sslKey(let sslKey):
+            self.sslKey = sslKey
+        case .sslKeyPassphrase(let sslKeyPassphrase):
+            self.sslKeyPassphrase = sslKeyPassphrase
+        }
+    }
 
     /**
      Parse an URL (String) into an array of ClientRequest.Options.
@@ -562,8 +620,8 @@ public class ClientRequest {
         setupHeaders()
         curlHelperSetOptString(handle!, CURLOPT_COOKIEFILE, "")
 
-        // To see the messages sent by libCurl, uncomment the next line of code
-        //curlHelperSetOptInt(handle, CURLOPT_VERBOSE, 1)
+        // To see the messages sent by libCurl
+        curlHelperSetOptInt(handle, CURLOPT_VERBOSE, enableVerboseLogging ? 1 : 0)
 		
         if useHTTP2 {
             curlHelperSetOptInt(handle!, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0)
@@ -571,6 +629,20 @@ public class ClientRequest {
         
         if let socketPath = unixDomainSocketPath?.cString(using: .utf8) {
             curlHelperSetUnixSocketPath(handle!, UnsafePointer(socketPath))
+        }
+
+        if let sslCertificate = self.sslCertificate {
+            curlHelperSetOptString(handle!, CURLOPT_SSLCERT, sslCertificate)
+            curlHelperSetOptString(handle!, CURLOPT_SSLCERTTYPE, sslCertificateFormat)
+        }
+        
+        if let sslKey = self.sslKey {
+            curlHelperSetOptString(handle!, CURLOPT_SSLKEY, sslKey)
+            curlHelperSetOptString(handle!, CURLOPT_SSLKEYTYPE, sslCertificateFormat)
+        }
+        
+        if let sslKeyPassphrase = self.sslKeyPassphrase {
+            curlHelperSetOptString(handle!, CURLOPT_KEYPASSWD, sslKeyPassphrase)
         }
     }
 
