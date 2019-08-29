@@ -107,6 +107,16 @@ public class ClientRequest {
     public private(set) var password: String?
 
     /**
+     Ca File used to check against Certified Authority
+     */
+    public private(set) var caFile: String?
+    
+    /**
+     Ca Path used to check against Certified Authority
+     */
+    public private(set) var caPath: String?
+
+    /**
      The maximum number of redirects before failure.
      
      - Note: The `ClientRequest` class will automatically follow redirect responses. To avoid redirect loops, it will at maximum follow `maxRedirects` redirects.
@@ -250,6 +260,11 @@ public class ClientRequest {
         /// - Note: This is very useful for debugging the Mutual TLS connection
         case enableVerboseLogging
         
+        /// Specifies the CA File to use
+        case caFile(String)
+        
+        /// Specifies the CA Path to use
+        case caPath(String)
     }
 
     /**
@@ -316,6 +331,12 @@ public class ClientRequest {
                     self.userName = userName
                 case .password(let password):
                     self.password = password
+                
+                case .caFile(let file):
+                    self.caFile = file
+                
+                case .caPath(let path):
+                    self.caPath = path
             }
         }
         
@@ -352,7 +373,7 @@ public class ClientRequest {
     public func set(_ option: Options) {
 
         switch(option) {
-        case .schema, .hostname, .port, .path, .username, .password:
+        case .schema, .hostname, .port, .path, .username, .password, .caFile, .caPath:
             Log.error("Must use ClientRequest.init() to set URL components")
         case .method(let method):
             self.method = method
@@ -612,10 +633,20 @@ public class ClientRequest {
         // HTTP parser does the decoding
         curlHelperSetOptInt(handle!, CURLOPT_HTTP_TRANSFER_DECODING, 0)
         curlHelperSetOptString(self.handle!, CURLOPT_URL, UnsafePointer(urlBuffer))
+        
         if disableSSLVerification {
             curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 0)
             curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 0)
         }
+        
+        if let file = self.caFile {
+            curlHelperSetOptString(handle!, CURLOPT_CAINFO, file)
+        }
+        
+        if let path = self.caPath {
+            curlHelperSetOptString(handle!, CURLOPT_CAPATH, path)
+        }
+        
         setMethodAndContentLength()
         setupHeaders()
         curlHelperSetOptString(handle!, CURLOPT_COOKIEFILE, "")
