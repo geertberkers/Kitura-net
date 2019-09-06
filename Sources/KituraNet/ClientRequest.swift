@@ -117,6 +117,11 @@ public class ClientRequest {
     public private(set) var caPath: String?
 
     /**
+     CA File used to check against Client Revoked List
+     */
+    public private(set) var crlFile: String?
+    
+    /**
      The maximum number of redirects before failure.
      
      - Note: The `ClientRequest` class will automatically follow redirect responses. To avoid redirect loops, it will at maximum follow `maxRedirects` redirects.
@@ -261,10 +266,13 @@ public class ClientRequest {
         case enableVerboseLogging
         
         /// Specifies the CA File to use
-        case caFile(String)
+        case caFile(String?)
         
         /// Specifies the CA Path to use
-        case caPath(String)
+        case caPath(String?)
+        
+        /// Specifies the CA File to use
+        case crlFile(String?)
     }
 
     /**
@@ -337,6 +345,9 @@ public class ClientRequest {
                 
                 case .caPath(let path):
                     self.caPath = path
+                
+                case .crlFile(let file):
+                    self.crlFile = file
             }
         }
         
@@ -373,7 +384,7 @@ public class ClientRequest {
     public func set(_ option: Options) {
 
         switch(option) {
-        case .schema, .hostname, .port, .path, .username, .password, .caFile, .caPath:
+        case .schema, .hostname, .port, .path, .username, .password, .caFile, .caPath, .crlFile:
             Log.error("Must use ClientRequest.init() to set URL components")
         case .method(let method):
             self.method = method
@@ -634,10 +645,8 @@ public class ClientRequest {
         curlHelperSetOptInt(handle!, CURLOPT_HTTP_TRANSFER_DECODING, 0)
         curlHelperSetOptString(self.handle!, CURLOPT_URL, UnsafePointer(urlBuffer))
         
-        if disableSSLVerification {
-            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 0)
-            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 0)
-        }
+        curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 2)
+        curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 1)
         
         if let file = self.caFile {
             curlHelperSetOptString(handle!, CURLOPT_CAINFO, file)
@@ -646,6 +655,16 @@ public class ClientRequest {
         if let path = self.caPath {
             curlHelperSetOptString(handle!, CURLOPT_CAPATH, path)
         }
+        
+        if let crl = self.crlFile {
+            curlHelperSetOptString(handle!, CURLOPT_CRLFILE, crl)
+        }
+        
+        if disableSSLVerification {
+            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 0)
+            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 0)
+        }
+        
         
         setMethodAndContentLength()
         setupHeaders()
