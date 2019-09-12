@@ -648,6 +648,9 @@ public class ClientRequest {
         curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 2)
         curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 1)
         
+        // Enable OCSP Stapling
+        curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYSTATUS, 1)
+
         if let file = self.caFile {
             curlHelperSetOptString(handle!, CURLOPT_CAINFO, file)
         }
