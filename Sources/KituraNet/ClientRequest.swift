@@ -645,30 +645,6 @@ public class ClientRequest {
         curlHelperSetOptInt(handle!, CURLOPT_HTTP_TRANSFER_DECODING, 0)
         curlHelperSetOptString(self.handle!, CURLOPT_URL, UnsafePointer(urlBuffer))
         
-        curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 2)
-        curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 1)
-        
-        // Enable OCSP Stapling
-        curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYSTATUS, 1)
-
-        if let file = self.caFile {
-            curlHelperSetOptString(handle!, CURLOPT_CAINFO, file)
-        }
-        
-        if let path = self.caPath {
-            curlHelperSetOptString(handle!, CURLOPT_CAPATH, path)
-        }
-        
-        if let crl = self.crlFile {
-            curlHelperSetOptString(handle!, CURLOPT_CRLFILE, crl)
-        }
-        
-        if disableSSLVerification {
-            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 0)
-            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 0)
-        }
-        
-        
         setMethodAndContentLength()
         setupHeaders()
         curlHelperSetOptString(handle!, CURLOPT_COOKIEFILE, "")
@@ -696,6 +672,33 @@ public class ClientRequest {
         
         if let sslKeyPassphrase = self.sslKeyPassphrase {
             curlHelperSetOptString(handle!, CURLOPT_KEYPASSWD, sslKeyPassphrase)
+        }
+        
+        curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 2)
+        curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 1)
+        
+        if disableSSLVerification {
+            Log.info("Disabled SSL Verification")
+            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 0)
+            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 0)
+        }
+        
+        // Enable OCSP Stapling - Not available on Linux
+        // curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYSTATUS, 1)
+        
+        if let file = self.caFile {
+            Log.info("Set CA File Info \(file)")
+            curlHelperSetOptString(handle!, CURLOPT_CAINFO, file)
+        }
+        
+        if let path = self.caPath {
+            Log.info("Set CA Path Info \(path)")
+            curlHelperSetOptString(handle!, CURLOPT_CAPATH, path)
+        }
+        
+        if let crl = self.crlFile {
+            Log.info("Set CRL Info \(crl)")
+            curlHelperSetOptString(handle!, CURLOPT_CRLFILE, crl)
         }
     }
 
