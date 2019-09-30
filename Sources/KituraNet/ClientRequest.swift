@@ -107,21 +107,6 @@ public class ClientRequest {
     public private(set) var password: String?
 
     /**
-     Ca File used to check against Certified Authority
-     */
-    public private(set) var caFile: String?
-    
-    /**
-     Ca Path used to check against Certified Authority
-     */
-    public private(set) var caPath: String?
-
-    /**
-     CA File used to check against Client Revoked List
-     */
-    public private(set) var crlFile: String?
-    
-    /**
      The maximum number of redirects before failure.
      
      - Note: The `ClientRequest` class will automatically follow redirect responses. To avoid redirect loops, it will at maximum follow `maxRedirects` redirects.
@@ -143,6 +128,21 @@ public class ClientRequest {
      */
     public private(set) var closeConnection = false
 
+    /**
+     Ca File used to check against Certified Authority
+     */
+    public private(set) var caFile: String?
+    
+    /**
+     Ca Path used to check against Certified Authority
+     */
+    public private(set) var caPath: String?
+    
+    /**
+     CA File used to check against Client Revoked List
+     */
+    public private(set) var crlFile: String?
+    
     /// Handle for working with libCurl
     private var handle: UnsafeMutableRawPointer?
     
@@ -161,22 +161,15 @@ public class ClientRequest {
     /// Should SSL verification be disabled
     private var disableSSLVerification = false
 
-    /// Should Verbose logging be enabled
-    private var enableVerboseLogging = false
-
     /// Should HTTP/2 protocol be used
     private var useHTTP2 = false
     
     /// The Unix domain socket path used for the request
     private var unixDomainSocketPath: String? = nil
 
-
-    /// Data that represents the "HTTP/2 " header status line prefix
-    fileprivate static let Http2StatusLineVersion = "HTTP/2 ".data(using: .utf8)!
-
-    /// Data that represents the "HTTP/2.0 " (with a minor) header status line prefix
-    fileprivate static let Http2StatusLineVersionWithMinor = "HTTP/2.0 ".data(using: .utf8)!
-
+    /// Should Verbose logging be enabled
+    private var enableVerboseLogging = false
+    
     /// The format of the SSL client certificate
     public private(set) var sslCertificateFormat: String = "PEM"
     
@@ -204,7 +197,21 @@ public class ClientRequest {
         /// Specifies the private key passphrase
         case sslKeyPassphrase(String)
     }
-    
+
+    /// Data that represents the "HTTP/2 " header status line prefix
+    fileprivate static let Http2StatusLineVersion = "HTTP/2 ".data(using: .utf8)!
+
+    /// Data that represents the "HTTP/2.0 " (with a minor) header status line prefix
+    fileprivate static let Http2StatusLineVersionWithMinor = "HTTP/2.0 ".data(using: .utf8)!
+
+    /// The hostname of the remote server
+    private var hostName: String?
+
+    /// The port number of the remote server
+    private var port: Int?
+
+    private var path = ""
+
     /**
     Client request options enum. This allows the client to specify certain parameteres such as HTTP headers, HTTP methods, host names, and SSL credentials.
     
@@ -259,7 +266,7 @@ public class ClientRequest {
         
         /// If present, the client will try to use HTTP/2 protocol for the connection.
         case useHTTP2
-
+        
         /// If present, CURL will log using verbose level.
         ///
         /// - Note: This is very useful for debugging the Mutual TLS connection
@@ -273,6 +280,7 @@ public class ClientRequest {
         
         /// Specifies the CA File to use
         case crlFile(String?)
+
     }
 
     /**
@@ -296,7 +304,42 @@ public class ClientRequest {
         
         self.url = url
         self.callback = callback
-        
+        if let url = URL(string: url) {
+            removeHttpCredentialsFromUrl(url)
+        }
+    }
+
+    private func removeHttpCredentialsFromUrl(_ url: URL) {
+        if let host = url.host {
+            self.hostName = host
+        }
+
+        if let port = url.port {
+            self.port = port
+        }
+
+        if let username = url.user {
+            self.userName = username
+        }
+
+        if let password = url.password {
+            self.password = password
+        }
+
+        var fullPath = url.path
+
+        // query strings and parameters need to be appended here
+        if let query = url.query {
+            fullPath += "?"
+            fullPath += query
+        }
+
+        self.path = fullPath
+        self.url = "\(url.scheme ?? "http")://\(self.hostName ?? "unknown")\(self.port.map { ":\($0)" } ?? "")\(fullPath)"
+        if let username = self.userName, let password = self.password {
+            self.headers["Authorization"] = createHTTPBasicAuthHeader(username: username, password: password)
+        }
+        return
     }
 
     /// Initializes a `ClientRequest` instance
@@ -304,7 +347,7 @@ public class ClientRequest {
     /// - Parameter options: An array of `Options' describing the request.
     /// - Parameter unixDomainSocketPath: Specifies the path of a Unix domain socket that the client should connect to.
     /// - Parameter callback: The closure of type `Callback` to be used for the callback.
-    init(options: [Options], unixDomainSocketPath: String? = nil, sslOptions: [SSLOptions] = [], callback: @escaping Callback) {
+    init(options: [Options], unixDomainSocketPath: String? = nil, sslOptions: [SSLOptions] = [] callback: @escaping Callback) {
 
         self.unixDomainSocketPath = unixDomainSocketPath
         self.callback = callback
@@ -340,6 +383,7 @@ public class ClientRequest {
                 case .password(let password):
                     self.password = password
                 
+                
                 case .caFile(let file):
                     self.caFile = file
                 
@@ -350,21 +394,15 @@ public class ClientRequest {
                     self.crlFile = file
             }
         }
-        
+
         for sslOption in sslOptions {
             set(sslOption)
         }
-
-        // Adding support for Basic HTTP authentication
-        let user = self.userName ?? ""
-        let pwd = self.password ?? ""
-        var authenticationClause = ""
-        // If either the userName or password are non-empty, add the authenticationClause
-        if (!user.isEmpty || !pwd.isEmpty) {
-          authenticationClause = "\(user):\(pwd)@"
+        
+        if let username = self.userName, let password = self.password {
+            self.headers["Authorization"] = createHTTPBasicAuthHeader(username: username, password: password)
         }
-
-        url = "\(theSchema)\(authenticationClause)\(hostName)\(port)\(path)"
+        url = "\(theSchema)\(hostName)\(port)\(path)"
 
     }
 
@@ -396,10 +434,11 @@ public class ClientRequest {
             self.maxRedirects = maxRedirects
         case .disableSSLVerification:
             self.disableSSLVerification = true
-        case .enableVerboseLogging:
-            self.enableVerboseLogging = true
         case .useHTTP2:
             self.useHTTP2 = true
+            
+        case .enableVerboseLogging:
+            self.enableVerboseLogging = true
         }
     }
 
@@ -644,14 +683,13 @@ public class ClientRequest {
         // HTTP parser does the decoding
         curlHelperSetOptInt(handle!, CURLOPT_HTTP_TRANSFER_DECODING, 0)
         curlHelperSetOptString(self.handle!, CURLOPT_URL, UnsafePointer(urlBuffer))
-        
         setMethodAndContentLength()
         setupHeaders()
         curlHelperSetOptString(handle!, CURLOPT_COOKIEFILE, "")
 
         // To see the messages sent by libCurl
         curlHelperSetOptInt(handle, CURLOPT_VERBOSE, enableVerboseLogging ? 1 : 0)
-		
+
         if useHTTP2 {
             curlHelperSetOptInt(handle!, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0)
         }
@@ -659,7 +697,7 @@ public class ClientRequest {
         if let socketPath = unixDomainSocketPath?.cString(using: .utf8) {
             curlHelperSetUnixSocketPath(handle!, UnsafePointer(socketPath))
         }
-
+        
         if let sslCertificate = self.sslCertificate {
             curlHelperSetOptString(handle!, CURLOPT_SSLCERT, sslCertificate)
             curlHelperSetOptString(handle!, CURLOPT_SSLCERTTYPE, sslCertificateFormat)
@@ -747,6 +785,11 @@ public class ClientRequest {
         curlHelperSetOptList(handle!, CURLOPT_HTTPHEADER, headersList)
     }
 
+    private func createHTTPBasicAuthHeader(username: String, password: String) -> String {
+        let authHeader = "\(username):\(password)"
+        let data = Data(authHeader.utf8)
+        return "Basic \(data.base64EncodedString())"
+    }
 }
 
 // MARK: CurlInvokerDelegate extension
