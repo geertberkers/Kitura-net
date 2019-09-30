@@ -161,6 +161,9 @@ public class ClientRequest {
     /// Should SSL verification be disabled
     private var disableSSLVerification = false
 
+    /// Should OCSP be enabled
+    private var enableOCSP = false
+    
     /// Should HTTP/2 protocol be used
     private var useHTTP2 = false
     
@@ -264,6 +267,9 @@ public class ClientRequest {
         /// - Note: This is very useful when working with self signed certificates.
         case disableSSLVerification
         
+        /// If present, enable OCSP
+        case enableOCSP
+        
         /// If present, the client will try to use HTTP/2 protocol for the connection.
         case useHTTP2
         
@@ -360,7 +366,7 @@ public class ClientRequest {
         for option in options  {
             switch(option) {
 
-                case .method, .headers, .maxRedirects, .disableSSLVerification, .useHTTP2, .enableVerboseLogging:
+                case .method, .headers, .maxRedirects, .disableSSLVerification, .useHTTP2, .enableVerboseLogging, .enableOCSP:
                     // call set() for Options that do not construct the URL
                     set(option)
                 case .schema(var schema):
@@ -439,6 +445,9 @@ public class ClientRequest {
             
         case .enableVerboseLogging:
             self.enableVerboseLogging = true
+            
+        case .enableOCSP:
+            self.enableOCSP = true
         }
     }
 
@@ -722,7 +731,7 @@ public class ClientRequest {
         }
         
         // Enable OCSP Stapling - Not available on Linux
-        // curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYSTATUS, 1)
+        curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYSTATUS, enableOCSP ? 1 : 0)
         
         if let file = self.caFile {
             Log.info("Set CA File Info \(file)")
