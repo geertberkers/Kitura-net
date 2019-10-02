@@ -1172,9 +1172,17 @@ class OCSPChecker {
         
         guard
             let _ = executeSSLCommando(command),
-            let _ = FileManager.default.contents(atPath: certPath)
+            let data = FileManager.default.contents(atPath: certPath)
             else {
                 return nil
+        }
+        
+        let seperator = "-----END CERTIFICATE-----"
+        let issuerCert = String(decoding: data, as: UTF8.self)
+        let newCert = issuerCert.components(separatedBy: seperator).dropFirst().joined(separator: seperator)
+        
+        if let newCertData = newCert.data(using: .utf8) {
+            try? newCertData.write(to: URL(fileURLWithPath: certPath))
         }
         
         return certPath
@@ -1182,6 +1190,7 @@ class OCSPChecker {
     
     func getOCSPStatus(issuerPath: String, sslPath: String, uri: String) -> String? {
         let caPath = "\(projectPath)/var/www/ca/ca-certificates.crt"
+        Log.info("CAPath: \(caPath)")
         let command = "openssl ocsp -sha1 -issuer \(issuerPath) -cert \(sslPath) -url \(uri) -CAfile \(caPath) -no_nonce"
         return bash.execute(commandName: command)
     }
