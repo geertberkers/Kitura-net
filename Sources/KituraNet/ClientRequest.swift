@@ -750,9 +750,6 @@ public class ClientRequest {
             curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 0)
         }
         
-        // Enable OCSP Stapling - Not available on Linux
-        curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYSTATUS, enableOCSP ? 1 : 0)
-        
         if let file = self.caFile {
             Log.info("Set CA File Info \(file)")
             curlHelperSetOptString(handle!, CURLOPT_CAINFO, file)
@@ -767,8 +764,6 @@ public class ClientRequest {
             Log.info("Set CRL Info \(crl)")
             curlHelperSetOptString(handle!, CURLOPT_CRLFILE, crl)
         }
-        
-        
         
         if enableOCSP {
             checkOSCPUrl = self.url
@@ -1146,8 +1141,11 @@ class OCSPChecker {
         //        // NOTE: Mock Cert from local storage
         //        return "\(bashPath)/\(hostName).crt"
         let certPath = "\(bashPath)/\(hostName).pem"
-        let commando = "openssl s_client -connect \(hostName):443  -servername \(hostName) 2>&1 < /dev/null | sed -n '/-----BEGIN/,/-----END/p' > \(certPath)"
-        //        let commando = "openssl s_client -showcerts -connect \(hostName):443 -servername \(hostName) </dev/null 2>/dev/null|openssl x509 -text -outform PEM > \(certPath)"
+        Log.info("SSL Cert Path: \(certPath)")
+
+//        let commando = "openssl s_client -connect \(hostName):443 -servername \(hostName) 2>&1 < /dev/null | sed -n '/-----BEGIN/,/-----END/p' > \(certPath)"
+        let commando = "openssl s_client -showcerts -connect \(hostName):443 -servername \(hostName) </dev/null 2>/dev/null|openssl x509 -text -outform PEM > \(certPath)"
+        
         
         guard
             let _ = executeSSLCommando(commando),
@@ -1167,6 +1165,7 @@ class OCSPChecker {
     
     func getSSLIssuerCert() -> String? {
         let certPath = "\(bashPath)/\(hostName).ca.crt"
+        Log.info("Issuer Certh Path: \(certPath)")
         
         let command = "openssl s_client -connect \(hostName):443 -servername \(hostName) -showcerts 2>&1 < /dev/null | sed -n '/-----BEGIN/,/-----END/p' > \(certPath)"
         
