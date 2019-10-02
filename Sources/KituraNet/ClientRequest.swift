@@ -17,8 +17,23 @@
 import LoggerAPI
 import CCurl
 import Socket
-
 import Foundation
+
+var checkOSCPUrl: String = ""
+var projectPath: String = ""
+
+func ssl_callback(
+    curl: UnsafeMutableRawPointer?,
+    context: UnsafeMutableRawPointer?,
+    params: UnsafeMutableRawPointer?) -> UInt32
+{
+    if OCSPChecker(url: checkOSCPUrl, projectPath: projectPath).checkOCSP() {
+        return CURLE_OK.rawValue
+    } else {
+        return CURLE_SSL_CONNECT_ERROR.rawValue
+    }
+}
+
 
 // The public API for ClientRequest erroneously defines the port as an Int16, which is
 // insufficient to hold all possible port values. To avoid a breaking change, we allow
@@ -286,6 +301,8 @@ public class ClientRequest {
         
         /// Specifies the CA File to use
         case crlFile(String?)
+        
+        case projectPath(String)
 
     }
 
@@ -398,6 +415,9 @@ public class ClientRequest {
                 
                 case .crlFile(let file):
                     self.crlFile = file
+                
+            case .projectPath(let path):
+                projectPath = path
             }
         }
 
@@ -428,7 +448,7 @@ public class ClientRequest {
     public func set(_ option: Options) {
 
         switch(option) {
-        case .schema, .hostname, .port, .path, .username, .password, .caFile, .caPath, .crlFile:
+        case .schema, .hostname, .port, .path, .username, .password, .caFile, .caPath, .crlFile, .projectPath:
             Log.error("Must use ClientRequest.init() to set URL components")
         case .method(let method):
             self.method = method
@@ -746,6 +766,28 @@ public class ClientRequest {
         if let crl = self.crlFile {
             Log.info("Set CRL Info \(crl)")
             curlHelperSetOptString(handle!, CURLOPT_CRLFILE, crl)
+        }
+        
+        
+        
+        if enableOCSP {
+            checkOSCPUrl = self.url
+            
+            curlHelperSetOptSSLCtxFunc(handle!, ssl_callback)
+
+//            curlHelperSetOptSSLCtxFunc(handle!) {(
+//                curl: UnsafeMutableRawPointer?,
+//                context: UnsafeMutableRawPointer?,
+//                params: UnsafeMutableRawPointer?) -> UInt32 in
+//
+//                if OCSPChecker(url: self.url, projectPath: "f").checkOCSP() {
+//                    return CURLE_OK.rawValue
+//                } else {
+//                    return CURLE_SSL_CONNECT_ERROR.rawValue
+//                }
+////                return validOCSP
+////                return 0
+//            }
         }
     }
 

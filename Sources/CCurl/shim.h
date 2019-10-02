@@ -55,8 +55,14 @@ static inline CURLcode curlHelperSetOptReadFunc(CURL *curl, void *userData, size
     return rc;
 }
 
-static inline CURLcode curlHelperSetOptWriteFunc(CURL *curl, void *userData, size_t (*write_cb) (char *ptr, size_t size, size_t nmemb, void *userdata)) {
 
+static inline CURLcode curlHelperSetOptSSLCtxFunc(CURL *curl, unsigned int (*ctx_callback) (CURL  *curl, void *ssl_ctx, void *userptr)) {
+    return curl_easy_setopt(curl, CURLOPT_SSL_CTX_FUNCTION, ctx_callback);
+}
+
+
+static inline CURLcode curlHelperSetOptWriteFunc(CURL *curl, void *userData, size_t (*write_cb) (char *ptr, size_t size, size_t nmemb, void *userdata)) {
+    
     CURLcode rc = curl_easy_setopt(curl, CURLOPT_WRITEDATA, userData);
     if  (rc == CURLE_OK) {
         rc = curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_cb);
