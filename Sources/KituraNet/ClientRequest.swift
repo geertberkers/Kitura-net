@@ -1080,7 +1080,8 @@ final class Bash: CommandExecuting {
 class OCSPChecker {
     
     init(url: String, projectPath: String) {
-        self.url = url
+        self.url = url.replacingOccurrences(of: "http://", with: "")
+            .replacingOccurrences(of: "https://", with: "")
         self.projectPath = projectPath
     }
     
