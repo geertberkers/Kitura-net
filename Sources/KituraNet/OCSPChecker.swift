@@ -5,41 +5,39 @@
 //  Created by Geert Berkers on 03/10/2019.
 //
 
+import LoggerAPI
 import Foundation
-
 
 class OCSPChecker {
     
-    init(url: String, projectPath: String) {
-        self.url = url.replacingOccurrences(of: "http://", with: "")
-            .replacingOccurrences(of: "https://", with: "")
-        self.projectPath = projectPath
-    }
-    
     var url: String
     var projectPath: String
-    var ocspUri: String? = nil
+    
+    var bashPath : String {
+        return "\(projectPath)/var/bash"
+    }
     
     var hostName: String {
         return String(url.split(separator: "/").first!)
     }
     
+    init(url: String, projectPath: String) {
+        self.url = url
+            .replacingOccurrences(of: "http://", with: "")
+            .replacingOccurrences(of: "https://", with: "")
+        self.projectPath = projectPath
+    }
+    
     func checkOCSP() -> Bool {
         Log.info("HostName: \(hostName)")
         
-        guard let sslPath = getSSLCert() else {
-            Log.error("Could NOT download SSL Cert from : \(hostName)")
+        guard let (sslPath, issuerPath) = downloadCertificates() else {
+            Log.error("Could NOT download SSL Certificates from: \(hostName)")
             return false
         }
         
-        Log.info("SSL Path: \(sslPath)")
-        
-        guard let issuerPath = getSSLIssuerCert() else {
-            Log.error("Could NOT get issuer Cert")
-            return false
-        }
-        
-        Log.info("Issuer Path: \(issuerPath)")
+        Log.info("SSL Cert Path: \(sslPath)")
+        Log.info("SSL Issuer Path: \(issuerPath)")
         
         guard let ocspUri = getOCSPUri(sslPath: sslPath) else {
             Log.error("No OCSP Uri")
@@ -47,8 +45,6 @@ class OCSPChecker {
         }
         
         Log.info("OCSP uri: \(ocspUri)")
-        
-        self.ocspUri = ocspUri
         
         guard let ocspStatus = getOCSPStatus(issuerPath: issuerPath, sslPath: sslPath, uri: ocspUri) else {
             Log.error("No OCSP Status")
@@ -73,24 +69,51 @@ class OCSPChecker {
         }
     }
     
-    func getSSLCert() -> String? {
-        //        // NOTE: Mock Cert from local storage
-        //        return "\(bashPath)/\(hostName).crt"
-        let certPath = "\(bashPath)/\(hostName).pem"
-        Log.info("SSL Cert Path: \(certPath)")
+    func downloadCertificates() -> (String, String)? {
+        let command = "openssl s_client -connect \(hostName):443 -servername \(hostName) -showcerts 2>&1 < /dev/null | sed -n '/-----BEGIN/,/-----END/p'"
         
-        //        let commando = "openssl s_client -connect \(hostName):443 -servername \(hostName) 2>&1 < /dev/null | sed -n '/-----BEGIN/,/-----END/p' > \(certPath)"
-        let commando = "openssl s_client -showcerts -connect \(hostName):443 -servername \(hostName) </dev/null 2>/dev/null|openssl x509 -text -outform PEM > \(certPath)"
+        guard let result = executeSSLCommando(command) else {
+            Log.error("No certificates")
+            return nil
+        }
         
+        let endCertificateSeperator = "-----END CERTIFICATE-----\n"
+        let caCertificatePath = "\(bashPath)/\(hostName).crt"
+        let issuerCertificatePath = "\(bashPath)/\(hostName).ca.crt"
+        
+        let certificates = result.components(separatedBy: endCertificateSeperator)
         
         guard
-            let _ = executeSSLCommando(commando),
-            let _ = FileManager.default.contents(atPath: certPath)
+            certificates
+                // Count certificatets only! Do not count empty line!
+                .filter( { $0.starts(with: "-----BEGIN CERTIFICATE-----")})
+                .count >= 2
             else {
+                Log.error("No issuer certificates found!")
                 return nil
         }
         
-        return certPath
+        let caCertificate = certificates.first! + endCertificateSeperator
+        let issuerCerts = certificates.dropFirst().joined(separator: endCertificateSeperator)
+        
+        guard let caData = caCertificate.data(using: .utf8) else {
+            Log.error("No CA Certificate")
+            return nil
+        }
+        
+        guard let issuerDatta = issuerCerts.data(using: .utf8) else {
+            Log.error("No ISSUER Certificate")
+            return nil
+        }
+        
+        do {
+            try caData.write(to: URL(fileURLWithPath: caCertificatePath))
+            try issuerDatta.write(to: URL(fileURLWithPath: issuerCertificatePath))
+            return (caCertificatePath, issuerCertificatePath)
+        } catch {
+            Log.error("Could not save CA or ISSUER certificates")
+            return nil
+        }
     }
     
     func getOCSPUri(sslPath: String) -> String? {
@@ -98,34 +121,8 @@ class OCSPChecker {
         return bash.execute(commandName: command)?.replacingOccurrences(of: "\n", with: "")
     }
     
-    
-    func getSSLIssuerCert() -> String? {
-        let certPath = "\(bashPath)/\(hostName).ca.crt"
-        Log.info("Issuer Certh Path: \(certPath)")
-        
-        let command = "openssl s_client -connect \(hostName):443 -servername \(hostName) -showcerts 2>&1 < /dev/null | sed -n '/-----BEGIN/,/-----END/p' > \(certPath)"
-        
-        guard
-            let _ = executeSSLCommando(command),
-            let data = FileManager.default.contents(atPath: certPath)
-            else {
-                return nil
-        }
-        
-        let seperator = "-----END CERTIFICATE-----"
-        let issuerCert = String(decoding: data, as: UTF8.self)
-        let newCert = issuerCert.components(separatedBy: seperator).dropFirst().joined(separator: seperator)
-        
-        if let newCertData = newCert.data(using: .utf8) {
-            try? newCertData.write(to: URL(fileURLWithPath: certPath))
-        }
-        
-        return certPath
-    }
-    
     func getOCSPStatus(issuerPath: String, sslPath: String, uri: String) -> String? {
         let caPath = "\(projectPath)/var/www/ca/ca-certificates.crt"
-        Log.info("CAPath: \(caPath)")
         let command = "openssl ocsp -sha1 -issuer \(issuerPath) -cert \(sslPath) -url \(uri) -CAfile \(caPath) -no_nonce"
         return bash.execute(commandName: command)
     }
@@ -134,17 +131,4 @@ class OCSPChecker {
     func executeSSLCommando(_ commando: String) -> String? {
         return bash.execute(commandName: commando)
     }
-}
-
-extension OCSPChecker {
-    
-    var bashPath : String {
-        return "\(projectPath)/var/bash"
-    }
-    
-    var chain: String {
-        return "\(projectPath)/var/www/ca/ca-certificates.crt"
-    }
-    
-    
 }
