@@ -8,24 +8,24 @@
 import LoggerAPI
 import Foundation
 
-class OCSPChecker {
-    
+public class OCSPChecker {
+
+    public static var projectPath: String = ""
+
     var url: String
-    var projectPath: String
     
     var bashPath : String {
-        return "\(projectPath)/var/bash"
+        return "\(OCSPChecker.projectPath)/var/bash"
     }
     
     var hostName: String {
         return String(url.split(separator: "/").first!)
     }
     
-    init(url: String, projectPath: String) {
+    init(url: String) {
         self.url = url
             .replacingOccurrences(of: "http://", with: "")
             .replacingOccurrences(of: "https://", with: "")
-        self.projectPath = projectPath
     }
     
     func checkOCSP() -> Bool {
@@ -122,7 +122,7 @@ class OCSPChecker {
     }
     
     func getOCSPStatus(issuerPath: String, sslPath: String, uri: String) -> String? {
-        let caPath = "\(projectPath)/var/www/ca/ca-certificates.crt"
+        let caPath = "\(OCSPChecker.projectPath)/var/www/ca/ca-certificates.crt"
         let command = "openssl ocsp -sha1 -issuer \(issuerPath) -cert \(sslPath) -url \(uri) -CAfile \(caPath) -no_nonce"
         return bash.execute(commandName: command)
     }

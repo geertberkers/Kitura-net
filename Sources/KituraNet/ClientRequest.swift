@@ -19,21 +19,6 @@ import CCurl
 import Socket
 import Foundation
 
-var checkOSCPUrl: String = ""
-var projectPath: String = ""
-
-func ssl_callback(
-    curl: UnsafeMutableRawPointer?,
-    context: UnsafeMutableRawPointer?,
-    params: UnsafeMutableRawPointer?) -> UInt32
-{
-    if OCSPChecker(url: checkOSCPUrl, projectPath: projectPath).checkOCSP() {
-        return CURLE_OK.rawValue
-    } else {
-        return CURLE_SSL_CONNECT_ERROR.rawValue
-    }
-}
-
 
 // The public API for ClientRequest erroneously defines the port as an Int16, which is
 // insufficient to hold all possible port values. To avoid a breaking change, we allow
@@ -68,6 +53,18 @@ This class provides a set of low level APIs for issuing HTTP requests to another
 */
 public class ClientRequest {
 
+//    func ssl_callback(
+//        curl: UnsafeMutableRawPointer?,
+//        context: UnsafeMutableRawPointer?,
+//        params: UnsafeMutableRawPointer?) -> UInt32
+//    {
+//        if OCSPChecker(url: self.url, projectPath: self.projectPath).checkOCSP() {
+//            return CURLE_OK.rawValue
+//        } else {
+//            return CURLE_SSL_CONNECT_ERROR.rawValue
+//        }
+//    }
+    
     /// Initialize the one time initialization struct to cause one time initializations to occur
     static private let oneTime = OneTimeInitializations()
 
@@ -199,6 +196,8 @@ public class ClientRequest {
     
     /// The private key passphrase
     public private(set) var sslKeyPassphrase: String?
+    
+    private var projectPath: String = ""
     
     /// Client request option enum
     public enum SSLOptions {
@@ -417,7 +416,7 @@ public class ClientRequest {
                     self.crlFile = file
                 
             case .projectPath(let path):
-                projectPath = path
+                self.projectPath = path
             }
         }
 
@@ -766,23 +765,27 @@ public class ClientRequest {
         }
         
         if enableOCSP {
-            checkOSCPUrl = self.url
+            // Use unsafePointer to forward url to the callback
+            let unsafePointer = UnsafeMutablePointer<Int8>(mutating: (self.url as NSString).utf8String)
+            curlHelperSetOptString(handle!, CURLOPT_SSL_CTX_DATA, unsafePointer)
             
-            curlHelperSetOptSSLCtxFunc(handle!, ssl_callback)
-
-//            curlHelperSetOptSSLCtxFunc(handle!) {(
-//                curl: UnsafeMutableRawPointer?,
-//                context: UnsafeMutableRawPointer?,
-//                params: UnsafeMutableRawPointer?) -> UInt32 in
-//
-//                if OCSPChecker(url: self.url, projectPath: "f").checkOCSP() {
-//                    return CURLE_OK.rawValue
-//                } else {
-//                    return CURLE_SSL_CONNECT_ERROR.rawValue
-//                }
-////                return validOCSP
-////                return 0
-//            }
+            curlHelperSetOptSSLCtxFunc(handle!) {(
+                curl: UnsafeMutableRawPointer?,
+                context: UnsafeMutableRawPointer?,
+                params: UnsafeMutableRawPointer?) -> UInt32 in
+                
+                guard let params = params else {
+                    return CURLE_SSL_CONNECT_ERROR.rawValue
+                }
+                
+                let url = String(cString: params.assumingMemoryBound(to: UInt8.self))
+                
+                if OCSPChecker(url: url).checkOCSP() {
+                    return CURLE_OK.rawValue
+                } else {
+                    return CURLE_ABORTED_BY_CALLBACK.rawValue
+                }
+            }
         }
     }
 
