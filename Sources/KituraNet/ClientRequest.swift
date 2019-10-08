@@ -52,18 +52,6 @@ This class provides a set of low level APIs for issuing HTTP requests to another
 ````
 */
 public class ClientRequest {
-
-//    func ssl_callback(
-//        curl: UnsafeMutableRawPointer?,
-//        context: UnsafeMutableRawPointer?,
-//        params: UnsafeMutableRawPointer?) -> UInt32
-//    {
-//        if OCSPChecker(url: self.url, projectPath: self.projectPath).checkOCSP() {
-//            return CURLE_OK.rawValue
-//        } else {
-//            return CURLE_SSL_CONNECT_ERROR.rawValue
-//        }
-//    }
     
     /// Initialize the one time initialization struct to cause one time initializations to occur
     static private let oneTime = OneTimeInitializations()
@@ -196,9 +184,7 @@ public class ClientRequest {
     
     /// The private key passphrase
     public private(set) var sslKeyPassphrase: String?
-    
-    private var projectPath: String = ""
-    
+        
     /// Client request option enum
     public enum SSLOptions {
         
@@ -300,9 +286,6 @@ public class ClientRequest {
         
         /// Specifies the CA File to use
         case crlFile(String?)
-        
-        case projectPath(String)
-
     }
 
     /**
@@ -414,9 +397,6 @@ public class ClientRequest {
                 
                 case .crlFile(let file):
                     self.crlFile = file
-                
-            case .projectPath(let path):
-                self.projectPath = path
             }
         }
 
@@ -447,7 +427,7 @@ public class ClientRequest {
     public func set(_ option: Options) {
 
         switch(option) {
-        case .schema, .hostname, .port, .path, .username, .password, .caFile, .caPath, .crlFile, .projectPath:
+        case .schema, .hostname, .port, .path, .username, .password, .caFile, .caPath, .crlFile:
             Log.error("Must use ClientRequest.init() to set URL components")
         case .method(let method):
             self.method = method
@@ -1024,6 +1004,3 @@ private struct OneTimeInitializations {
         curl_global_init(Int(CURL_GLOBAL_SSL))
     }
 }
-
-
-
