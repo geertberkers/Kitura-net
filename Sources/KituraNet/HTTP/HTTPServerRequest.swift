@@ -309,12 +309,12 @@ public class HTTPServerRequest: ServerRequest {
     
     /// Extra handling performed when a message is completely parsed
     func parsingCompleted() {
-        Log.entry("parsingCompleted")
-
+        
         guard let httpParser = httpParser else {
             Log.error("Parser nil")
             return
         }
+        
         
         _url = nil // reset it so it is recomputed on next access
         urlc = nil // reset it so it is recomputed on next access
@@ -336,7 +336,6 @@ public class HTTPServerRequest: ServerRequest {
         
         status.keepAlive = httpParser.isKeepAlive()
         status.state = .messageComplete
-        Log.exit("parsingCompleted")
     }
 
 }

@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import LoggerAPI
 import CHTTPParser
 import Foundation
 
@@ -154,11 +153,7 @@ class HTTPParser {
 
     /// Did the request include a Connection: keep-alive header?
     func isKeepAlive() -> Bool {
-        Log.entry("isKeepAlive()")
-        Log.debug("isRequest: \(isRequest)")
-        let shouldKeepAlive = http_should_keep_alive(&parser) == 1
-        Log.debug("shouldKeepAlive: \(shouldKeepAlive)")
-        return isRequest && shouldKeepAlive
+        return isRequest && http_should_keep_alive(&parser) == 1
     }
 
     /// Get the HTTP status code on responses
