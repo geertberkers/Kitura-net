@@ -164,6 +164,9 @@ public class ClientRequest {
     /// Should OCSP be enabled
     private var enableOCSP = false
     
+    /// Should HTTP/1 protocol be used
+    private var useHTTP1 = false
+    
     /// Should HTTP/2 protocol be used
     private var useHTTP2 = false
     
@@ -270,6 +273,9 @@ public class ClientRequest {
         /// If present, enable OCSP
         case enableOCSP
         
+        /// If present, the client will try to use HTTP/1 protocol for the connection.
+        case useHTTP1
+        
         /// If present, the client will try to use HTTP/2 protocol for the connection.
         case useHTTP2
         
@@ -365,7 +371,7 @@ public class ClientRequest {
         for option in options  {
             switch(option) {
 
-                case .method, .headers, .maxRedirects, .disableSSLVerification, .useHTTP2, .enableVerboseLogging, .enableOCSP:
+            case .method, .headers, .maxRedirects, .disableSSLVerification, .useHTTP1, .useHTTP2, .enableVerboseLogging, .enableOCSP:
                     // call set() for Options that do not construct the URL
                     set(option)
                 case .schema(var schema):
@@ -439,6 +445,10 @@ public class ClientRequest {
             self.maxRedirects = maxRedirects
         case .disableSSLVerification:
             self.disableSSLVerification = true
+        
+        case .useHTTP1:
+            self.useHTTP1 = true
+            
         case .useHTTP2:
             self.useHTTP2 = true
             
@@ -694,13 +704,14 @@ public class ClientRequest {
         setMethodAndContentLength()
         setupHeaders()
         curlHelperSetOptString(handle!, CURLOPT_COOKIEFILE, "")
-
-        // Set HTTP 1.0
-        curlHelperSetOptInt(handle, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0)
         
         // To see the messages sent by libCurl
         curlHelperSetOptInt(handle, CURLOPT_VERBOSE, enableVerboseLogging ? 1 : 0)
 
+        if useHTTP1 {
+            curlHelperSetOptInt(handle, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0)
+        }
+        
         if useHTTP2 {
             curlHelperSetOptInt(handle!, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0)
         }

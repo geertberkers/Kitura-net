@@ -29,33 +29,33 @@ public class OCSPChecker {
     }
     
     func checkOCSP() -> Bool {
-        Log.info("HostName: \(hostName)")
+        Log.debug("HostName: \(hostName)")
         
         guard let (sslPath, issuerPath) = downloadCertificates() else {
             Log.error("Could NOT download SSL Certificates from: \(hostName)")
             return false
         }
         
-        Log.info("SSL Cert Path: \(sslPath)")
-        Log.info("SSL Issuer Path: \(issuerPath)")
+        Log.debug("SSL Cert Path: \(sslPath)")
+        Log.debug("SSL Issuer Path: \(issuerPath)")
         
         guard let ocspUri = getOCSPUri(sslPath: sslPath) else {
             Log.error("No OCSP Uri")
             return false
         }
         
-        Log.info("OCSP uri: \(ocspUri)")
+        Log.debug("OCSP uri: \(ocspUri)")
         
         guard let ocspStatus = getOCSPStatus(issuerPath: issuerPath, sslPath: sslPath, uri: ocspUri) else {
             Log.error("No OCSP Status")
             return false
         }
         
-        Log.info("OCSP Status: \(ocspStatus)")
+        Log.verbose("OCSP Status: \(ocspStatus)")
         
         switch ocspStatus {
         case let status where status.contains(": good") :
-            Log.info("OSCP Verification: Good!")
+            Log.debug("OSCP Verification: Good!")
             return true
         case let status where status.contains(": revoked") :
             Log.error("OSCP Verification: Revoked!")
