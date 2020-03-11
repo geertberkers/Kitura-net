@@ -51,7 +51,9 @@ public class OCSPChecker {
             return false
         }
         
-        Log.verbose("OCSP Status: \(ocspStatus)")
+        Log.debug("OCSP Status: \(ocspStatus)")
+        
+        // TODO: Check if this can be uppercased.
         
         switch ocspStatus {
         case let status where status.contains(": good") :
@@ -65,6 +67,7 @@ public class OCSPChecker {
             return false
         default:
             Log.error("OCSP: No Result!")
+            Log.error(ocspStatus)
             return false
         }
     }
