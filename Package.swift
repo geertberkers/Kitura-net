@@ -69,6 +69,9 @@ targets.append(
 
 let package = Package(
     name: "Kitura-net",
+    platforms: [
+        .macOS(.v10_13),
+    ],
     products: [
         // Products define the executables and libraries produced by a package, and make them visible to other packages.
         .library(
