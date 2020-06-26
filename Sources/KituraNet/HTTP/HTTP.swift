@@ -127,8 +127,8 @@ public class HTTP {
     }
     ````
     */
-    public static func request(_ options: [ClientRequest.Options], unixDomainSocketPath: String? = nil, callback: @escaping ClientRequest.Callback) -> ClientRequest {
-        return ClientRequest(options: options, unixDomainSocketPath: unixDomainSocketPath, callback: callback)
+    public static func request(_ options: [ClientRequest.Options], unixDomainSocketPath: String? = nil, _ sslOptions: [ClientRequest.SSLOptions] = [], callback: @escaping ClientRequest.Callback) -> ClientRequest {
+        return ClientRequest(options: options, unixDomainSocketPath: unixDomainSocketPath, sslOptions: sslOptions, callback: callback)
     }
     
     /**
