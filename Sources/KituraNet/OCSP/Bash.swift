@@ -8,6 +8,7 @@
 import LoggerAPI
 import Foundation
 
+@available(OSX 10.13, *)
 let bash: CommandExecuting = Bash()
 
 protocol CommandExecuting {
@@ -15,6 +16,7 @@ protocol CommandExecuting {
     func execute(commandName: String, arguments: [String]) -> String?
 }
 
+@available(OSX 10.13, *)
 final class Bash: CommandExecuting {
     
     // MARK: - CommandExecuting

@@ -17,8 +17,8 @@
 import LoggerAPI
 import CCurl
 import Socket
-import Foundation
 
+import Foundation
 
 // The public API for ClientRequest erroneously defines the port as an Int16, which is
 // insufficient to hold all possible port values. To avoid a breaking change, we allow
@@ -52,7 +52,7 @@ This class provides a set of low level APIs for issuing HTTP requests to another
 ````
 */
 public class ClientRequest {
-    
+
     /// Initialize the one time initialization struct to cause one time initializations to occur
     static private let oneTime = OneTimeInitializations()
 
@@ -160,6 +160,9 @@ public class ClientRequest {
     
     /// Should SSL verification be disabled
     private var disableSSLVerification = false
+    
+    /// Should Verbose logging be enabled
+    private var enableVerboseLogging = false
 
     /// Should OCSP be enabled
     private var enableOCSP = false
@@ -173,27 +176,24 @@ public class ClientRequest {
     /// The Unix domain socket path used for the request
     private var unixDomainSocketPath: String? = nil
 
-    /// Should Verbose logging be enabled
-    private var enableVerboseLogging = false
-    
     /// The format of the SSL client certificate
     public private(set) var sslCertificateFormat: String = "PEM"
-    
+      
     /// The filename of the SSL client certificate
     public private(set) var sslCertificate: String?
-    
+      
     /// The filename of the private key for the SSL client certificate
     public private(set) var sslKey: String?
-    
+      
     /// The private key passphrase
     public private(set) var sslKeyPassphrase: String?
-        
+
     /// Client request option enum
     public enum SSLOptions {
-        
+          
         /// Specifies the format of the SSL client certificate
         case sslCertificateFormat(String)
-        
+          
         /// Specifies the filename of the SSL client certificate
         case sslCertificate(String)
         
@@ -203,7 +203,7 @@ public class ClientRequest {
         /// Specifies the private key passphrase
         case sslKeyPassphrase(String)
     }
-
+    
     /// Data that represents the "HTTP/2 " header status line prefix
     fileprivate static let Http2StatusLineVersion = "HTTP/2 ".data(using: .utf8)!
 
@@ -270,9 +270,6 @@ public class ClientRequest {
         /// - Note: This is very useful when working with self signed certificates.
         case disableSSLVerification
         
-        /// If present, enable OCSP
-        case enableOCSP
-        
         /// If present, the client will try to use HTTP/1 protocol for the connection.
         case useHTTP1
         
@@ -284,14 +281,18 @@ public class ClientRequest {
         /// - Note: This is very useful for debugging the Mutual TLS connection
         case enableVerboseLogging
         
+        /// If present, enable OCSP
+        case enableOCSP
+               
         /// Specifies the CA File to use
         case caFile(String?)
-        
+               
         /// Specifies the CA Path to use
         case caPath(String?)
-        
+               
         /// Specifies the CA File to use
         case crlFile(String?)
+        
     }
 
     /**
@@ -394,22 +395,21 @@ public class ClientRequest {
                 case .password(let password):
                     self.password = password
                 
-                
                 case .caFile(let file):
                     self.caFile = file
-                
+                         
                 case .caPath(let path):
                     self.caPath = path
-                
+                         
                 case .crlFile(let file):
                     self.crlFile = file
             }
         }
-
+        
         for sslOption in sslOptions {
             set(sslOption)
         }
-        
+
         if let username = self.userName, let password = self.password {
             self.headers["Authorization"] = createHTTPBasicAuthHeader(username: username, password: password)
         }
@@ -443,23 +443,24 @@ public class ClientRequest {
             }
         case .maxRedirects(let maxRedirects):
             self.maxRedirects = maxRedirects
+ 
         case .disableSSLVerification:
             self.disableSSLVerification = true
-        
+                
         case .useHTTP1:
             self.useHTTP1 = true
-            
+                     
         case .useHTTP2:
             self.useHTTP2 = true
-            
+                     
         case .enableVerboseLogging:
             self.enableVerboseLogging = true
-            
+                     
         case .enableOCSP:
             self.enableOCSP = true
         }
     }
-
+    
     /// Set a single ssloption in the request.  URL parameters must be set in init()
     ///
     /// - Parameter option: an `SSLOption` instance describing the change to be made to the request
@@ -476,6 +477,7 @@ public class ClientRequest {
             self.sslKeyPassphrase = sslKeyPassphrase
         }
     }
+
 
     /**
      Parse an URL (String) into an array of ClientRequest.Options.
@@ -701,15 +703,19 @@ public class ClientRequest {
         // HTTP parser does the decoding
         curlHelperSetOptInt(handle!, CURLOPT_HTTP_TRANSFER_DECODING, 0)
         curlHelperSetOptString(self.handle!, CURLOPT_URL, UnsafePointer(urlBuffer))
+        if disableSSLVerification {
+            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 0)
+            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 0)
+        }
         setMethodAndContentLength()
         setupHeaders()
         curlHelperSetOptString(handle!, CURLOPT_COOKIEFILE, "")
-        
-        // To see the messages sent by libCurl
-        curlHelperSetOptInt(handle, CURLOPT_VERBOSE, enableVerboseLogging ? 1 : 0)
 
+        // To see the messages sent by libCurl, uncomment the next line of code
+        curlHelperSetOptInt(handle, CURLOPT_VERBOSE, enableVerboseLogging ? 1 : 0)
+		
         if useHTTP1 {
-            curlHelperSetOptInt(handle, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0)
+            curlHelperSetOptInt(handle!, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_0)
         }
         
         if useHTTP2 {
@@ -724,12 +730,12 @@ public class ClientRequest {
             curlHelperSetOptString(handle!, CURLOPT_SSLCERT, sslCertificate)
             curlHelperSetOptString(handle!, CURLOPT_SSLCERTTYPE, sslCertificateFormat)
         }
-        
+               
         if let sslKey = self.sslKey {
             curlHelperSetOptString(handle!, CURLOPT_SSLKEY, sslKey)
             curlHelperSetOptString(handle!, CURLOPT_SSLKEYTYPE, sslCertificateFormat)
         }
-        
+               
         if let sslKeyPassphrase = self.sslKeyPassphrase {
             curlHelperSetOptString(handle!, CURLOPT_KEYPASSWD, sslKeyPassphrase)
         }
@@ -762,22 +768,30 @@ public class ClientRequest {
             // Use unsafePointer to forward url to the callback
             let unsafePointer = UnsafeMutablePointer<Int8>(mutating: (self.url as NSString).utf8String)
             curlHelperSetOptString(handle!, CURLOPT_SSL_CTX_DATA, unsafePointer)
-            
+                   
             curlHelperSetOptSSLCtxFunc(handle!) {(
                 curl: UnsafeMutableRawPointer?,
                 context: UnsafeMutableRawPointer?,
                 params: UnsafeMutableRawPointer?) -> UInt32 in
-                
+                       
                 guard let params = params else {
                     return CURLE_SSL_CONNECT_ERROR.rawValue
                 }
-                
+                    
                 let url = String(cString: params.assumingMemoryBound(to: UInt8.self))
                 
-                if OCSPChecker(url: url).checkOCSP() {
-                    return CURLE_OK.rawValue
+                if #available(OSX 10.13, *) {
+                    if OCSPChecker(url: url).checkOCSP() {
+                        return CURLE_OK.rawValue
+                    } else {
+                        return CURLE_ABORTED_BY_CALLBACK.rawValue
+                    }
                 } else {
-                    return CURLE_ABORTED_BY_CALLBACK.rawValue
+                    // TODO: FIX ME.
+                    // Currently returning OK.
+                    
+                    // Fallback on earlier versions
+                    return CURLE_OK.rawValue
                 }
             }
         }
@@ -1018,3 +1032,4 @@ private struct OneTimeInitializations {
         curl_global_init(Int(CURL_GLOBAL_SSL))
     }
 }
+

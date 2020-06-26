@@ -8,6 +8,7 @@
 import LoggerAPI
 import Foundation
 
+@available(OSX 10.13, *)
 public class OCSPChecker {
 
     public static var projectPath: String = ""
