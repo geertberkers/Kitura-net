@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import LoggerAPI
 import CCurl
 import Socket
 
@@ -750,17 +749,14 @@ public class ClientRequest {
         }
         
         if let file = self.caFile {
-            Log.info("Set CA File Info \(file)")
             curlHelperSetOptString(handle!, CURLOPT_CAINFO, file)
         }
         
         if let path = self.caPath {
-            Log.info("Set CA Path Info \(path)")
             curlHelperSetOptString(handle!, CURLOPT_CAPATH, path)
         }
         
         if let crl = self.crlFile {
-            Log.info("Set CRL Info \(crl)")
             curlHelperSetOptString(handle!, CURLOPT_CRLFILE, crl)
         }
         
