@@ -16,7 +16,7 @@
 
 import CCurl
 import Socket
-
+import LoggerAPI
 import Foundation
 
 // The public API for ClientRequest erroneously defines the port as an Int16, which is
