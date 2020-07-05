@@ -19,7 +19,6 @@ protocol CommandExecuting {
 @available(OSX 10.13, *)
 final class Bash: CommandExecuting {
     
-    public static var useLogging: Bool = true
 
     // MARK: - CommandExecuting
     
@@ -28,7 +27,7 @@ final class Bash: CommandExecuting {
     }
     
     func execute(commandName: String, arguments: [String]) -> String? {
-        if Bash.useLogging {
+        if OCSPChecker.logBash {
             Log.info("Command:\n\(commandName)")
         }
         
@@ -37,7 +36,7 @@ final class Bash: CommandExecuting {
             return nil
         }
         
-        if Bash.useLogging {
+        if OCSPChecker.logBash {
             Log.info("Result:\n\(result)")
         }
         

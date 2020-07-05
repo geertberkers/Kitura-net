@@ -11,6 +11,7 @@ import Foundation
 @available(OSX 10.13, *)
 public class OCSPChecker {
 
+    public static var logBash: Bool = true
     public static var projectPath: String = ""
 
     var url: String
