@@ -19,6 +19,8 @@ protocol CommandExecuting {
 @available(OSX 10.13, *)
 final class Bash: CommandExecuting {
     
+    public static var useLogging: Bool = true
+
     // MARK: - CommandExecuting
     
     func execute(commandName: String) -> String? {
@@ -26,21 +28,25 @@ final class Bash: CommandExecuting {
     }
     
     func execute(commandName: String, arguments: [String]) -> String? {
-        Log.debug("Command:\n\(commandName)")
+        if Bash.useLogging {
+            Log.info("Command:\n\(commandName)")
+        }
         
-        guard let result = execute(command: "/bin/bash" , arguments: ["-c", commandName]) else {
+        guard let result = executeCommand(command: "/bin/bash" , arguments: ["-c", commandName]) else {
             Log.error("Could NOT execute Bash Command:\n\(commandName)")
             return nil
         }
         
-        Log.debug("Result:\n\(result)")
+        if Bash.useLogging {
+            Log.info("Result:\n\(result)")
+        }
         
         return result
     }
     
     // MARK: Private
     
-    private func execute(command: String, arguments: [String] = []) -> String? {
+    private func executeCommand(command: String, arguments: [String] = []) -> String? {
         
         let process = Process()
         process.executableURL = URL(fileURLWithPath: command)
