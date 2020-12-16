@@ -702,10 +702,6 @@ public class ClientRequest {
         // HTTP parser does the decoding
         curlHelperSetOptInt(handle!, CURLOPT_HTTP_TRANSFER_DECODING, 0)
         curlHelperSetOptString(self.handle!, CURLOPT_URL, UnsafePointer(urlBuffer))
-        if disableSSLVerification {
-            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYHOST, 0)
-            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYPEER, 0)
-        }
         setMethodAndContentLength()
         setupHeaders()
         curlHelperSetOptString(handle!, CURLOPT_COOKIEFILE, "")
