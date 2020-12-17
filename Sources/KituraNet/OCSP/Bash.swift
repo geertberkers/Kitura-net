@@ -17,7 +17,7 @@ protocol CommandExecuting {
 }
 
 @available(OSX 10.13, *)
-final class Bash: CommandExecuting {
+public final class Bash: CommandExecuting {
 
     public static var logBash: Bool = true
     public static var projectPath: String = ""
