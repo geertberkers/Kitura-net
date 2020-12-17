@@ -820,9 +820,6 @@ extension ClientRequest: CurlInvokerDelegate {
     fileprivate func curlWriteCallback(_ buf: UnsafeMutablePointer<Int8>, size: Int) -> Int {
         
         response?.responseBuffers.append(bytes: UnsafeRawPointer(buf).assumingMemoryBound(to: UInt8.self), length: size)
-        
-        
-        response?.
         return size
         
     }
