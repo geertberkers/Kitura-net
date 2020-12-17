@@ -70,7 +70,7 @@ public class CRLChecker {
             Log.debug("CrlPath: \(crlPath)")
             
             // 5. Check CRL Status
-            guard let crlStatus = executeSSLCommando("openssl crl -inform der -text -in \(crlPath) | grep \(serialNumber)") else {
+            guard let crlStatus = executeSSLCommando("openssl crl -inform der -text -in \(hostname).crl | grep \(serialNumber)") else {
                 Log.error("No CRL Status")
                 return
             }
@@ -137,13 +137,13 @@ public class CRLChecker {
     }
     
     func downloadCRL(uri: String) -> String? {
-        // TODO: Implement me
+        let hostname = String(url.split(separator: "/").first!)
         let crlFile = String(uri.split(separator: "/").last!)
         if let pwd = executeSSLCommando("pwd") {
             Log.debug("PWD: \(pwd)")
             
             //let command = "/usr/local/bin/wget"
-            if let crlResult = executeSSLCommando("wget \(uri)") {
+            if let crlResult = executeSSLCommando("wget -P \(Bash.projectPath)/var/bash -O \(hostname).crl \(uri)") {
                 Log.debug("CrlResult: \(crlResult)")
                 return crlFile
             }
