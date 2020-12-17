@@ -757,35 +757,7 @@ public class ClientRequest {
         }
         
         if enableOCSP {
-            // Use unsafePointer to forward url to the callback
-            let unsafePointer = UnsafeMutablePointer<Int8>(mutating: (self.url as NSString).utf8String)
-            curlHelperSetOptString(handle!, CURLOPT_SSL_CTX_DATA, unsafePointer)
-                   
-            curlHelperSetOptSSLCtxFunc(handle!) {(
-                curl: UnsafeMutableRawPointer?,
-                context: UnsafeMutableRawPointer?,
-                params: UnsafeMutableRawPointer?) -> UInt32 in
-                       
-                guard let params = params else {
-                    return CURLE_SSL_CONNECT_ERROR.rawValue
-                }
-                    
-                let url = String(cString: params.assumingMemoryBound(to: UInt8.self))
-                
-                if #available(OSX 10.13, *) {
-                    if OCSPChecker(url: url).checkOCSP() {
-                        return CURLE_OK.rawValue
-                    } else {
-                        return CURLE_ABORTED_BY_CALLBACK.rawValue
-                    }
-                } else {
-                    // TODO: FIX ME.
-                    // Currently returning OK.
-                    
-                    // Fallback on earlier versions
-                    return CURLE_OK.rawValue
-                }
-            }
+            curlHelperSetOptInt(handle!, CURLOPT_SSL_VERIFYSTATUS, 1)
         }
     }
 
@@ -848,6 +820,9 @@ extension ClientRequest: CurlInvokerDelegate {
     fileprivate func curlWriteCallback(_ buf: UnsafeMutablePointer<Int8>, size: Int) -> Int {
         
         response?.responseBuffers.append(bytes: UnsafeRawPointer(buf).assumingMemoryBound(to: UInt8.self), length: size)
+        
+        
+        response?.
         return size
         
     }
