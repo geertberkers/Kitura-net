@@ -80,8 +80,8 @@ public class CRLChecker {
     }
     
     func downloadSSLCertificate(url: String) -> String? {
-        let certPath = "\(Bash.projectPath)/var/www/\(hostname).pem"
-        Log.debug("HostName: \(hostname)")
+        let certPath = "\(Bash.projectPath)/var/www/\(hostName).pem"
+        Log.debug("HostName: \(hostName)")
         Log.debug("CertPath: \(certPath)")
         
         let command = "openssl s_client -showcerts -connect \(hostName):443 -servername \(hostName) </dev/null 2>/dev/null|openssl x509 -outform PEM > \(certPath)"
