@@ -9,7 +9,6 @@ import LoggerAPI
 import Foundation
 
 @available(OSX 10.13, *)
-
 public class CRLChecker {
        
     var url: String
@@ -47,8 +46,8 @@ public class CRLChecker {
             Log.debug("CRL: \(crl)")
             
             // 3. Download CRL
-            guard let crlPath = downloadCRL(uri: crl) else {
-                Log.error("No CRLPath")
+            guard let _ = downloadCRL(uri: crl) else {
+                Log.error("No CRL to download...")
                 return
             }
                         
@@ -62,8 +61,7 @@ public class CRLChecker {
                 .replacingOccurrences(of: "serial=", with: "")
                 .replacingOccurrences(of: "\n", with: "")
             
-            Log.debug("SN: \(serialNumber)")
-            Log.debug("CrlPath: \(crlPath)")
+            Log.debug("SSL SerialNumber: \(serialNumber)")
             
             // 5. Check CRL Status
             guard let crlStatus = executeSSLCommando("openssl crl -inform der -text -in \(hostName).crl | grep \(serialNumber)") else {
@@ -82,20 +80,15 @@ public class CRLChecker {
     }
     
     func downloadSSLCertificate(url: String) -> String? {
-        let hostname = String(url.split(separator: "/").first!)
-        //        let certPath = "\(hostname).pem"
         let certPath = "\(Bash.projectPath)/var/www/\(hostname).pem"
         Log.debug("HostName: \(hostname)")
         Log.debug("CertPath: \(certPath)")
         
-        let command = "openssl s_client -showcerts -connect \(hostname):443 -servername \(hostname) </dev/null 2>/dev/null|openssl x509 -outform PEM > \(certPath)"
+        let command = "openssl s_client -showcerts -connect \(hostName):443 -servername \(hostName) </dev/null 2>/dev/null|openssl x509 -outform PEM > \(certPath)"
         
         guard let _ = executeSSLCommando(command) else {
             return nil
         }
-        
-        // Save Output as certificate
-        //result.data(using: .utf8)?.write(to: URL(fileURLWithPath: certPath))
         
         if (downloadedSSL(path: certPath)) {
             return certPath
@@ -132,10 +125,9 @@ public class CRLChecker {
     }
     
     func downloadCRL(uri: String) -> String? {
-        let hostname = String(url.split(separator: "/").first!)
         let crlFile = String(uri.split(separator: "/").last!)
         
-        if let crlResult = executeSSLCommando("wget -P \(Bash.projectPath)/var/bash -O \(hostname).crl \(uri)") {
+        if let crlResult = executeSSLCommando("wget -O\(Bash.projectPath)/var/bash/\(hostName).crl \(uri)") {
             Log.debug("CrlResult: \(crlResult)")
             return crlFile
         }
