@@ -21,6 +21,10 @@ public class CRLChecker {
         return String(url.split(separator: "/").first!)
     }
     
+    var crlPath : String {
+        "\(bashPath)/\(hostName).crl"
+    }
+    
     init(url: String) {
         self.url = url
             .replacingOccurrences(of: "http://", with: "")
@@ -64,7 +68,7 @@ public class CRLChecker {
             Log.debug("SSL SerialNumber: \(serialNumber)")
             
             // 5. Check CRL Status
-            guard let crlStatus = executeSSLCommando("openssl crl -inform der -text -in \(hostName).crl | grep \(serialNumber)") else {
+            guard let crlStatus = executeSSLCommando("openssl crl -inform der -text -in \(crlPath) | grep \(serialNumber)") else {
                 Log.error("No CRL Status")
                 return
             }
