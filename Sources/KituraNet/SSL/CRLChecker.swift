@@ -21,12 +21,8 @@ public class CRLChecker {
         return String(url.split(separator: "/").first!)
     }
     
-    var certPath: String {
-        "\(Bash.projectPath)/var/bash/\(hostName).pem"
-    }
-
     var crlPath : String {
-        "\(Bash.projectPath)/var/www/crl/LatestCRL.pem"
+        "\(bashPath)/\(hostName).crl"
     }
     
     init(url: String) {
@@ -41,36 +37,56 @@ public class CRLChecker {
             return false
         }
   
-        // 2. Get Serial Number
-        guard var serialNumber = executeSSLCommando("openssl x509 -in \(certPath) -noout -serial ") else {
-            Log.error("No certificate serialNumber")
+        // 2. Vraag CRL op van het certificaat
+        guard let crlUri = getCRLUri(certPath: certPath) else {
             return false
         }
         
-        serialNumber = serialNumber
-            .replacingOccurrences(of: "serial=", with: "")
-            .replacingOccurrences(of: "\n", with: "")
+        let crls = crlUri.split(separator: "|")
+        var validCertificate = true
         
-        Log.debug("SSL SerialNumber: \(serialNumber)")
-        Log.debug("CRL: \(crlPath)")
-        
-        // 3. Check CRL Status
-        guard let crlStatus = executeSSLCommando("openssl crl -inform pem -text -in \(crlPath) | grep \(serialNumber)") else {
-            Log.error("No CRL Status")
-            return false
+        crls.forEach { crlSubString in
+            let crl = String(crlSubString)
+            Log.debug("CRL: \(crl)")
+            
+            // 3. Download CRL
+            guard let _ = getCRL(uri: crl) else {
+                Log.error("No CRL to download...")
+                return
+            }
+                        
+            // 4. Get Serial Number
+            guard var serialNumber = executeSSLCommando("openssl x509 -in \(certPath) -noout -serial ") else {
+                Log.error("No certificate serialNumber")
+                return
+            }
+            
+            serialNumber = serialNumber
+                .replacingOccurrences(of: "serial=", with: "")
+                .replacingOccurrences(of: "\n", with: "")
+            
+            Log.debug("SSL SerialNumber: \(serialNumber)")
+            
+            // 5. Check CRL Status
+            guard let crlStatus = executeSSLCommando("openssl crl -inform der -text -in \(crlPath) | grep \(serialNumber)") else {
+                Log.error("No CRL Status")
+                return
+            }
+            
+            if crlStatus.contains(serialNumber) {
+                Log.error("CRL Check: Invalid SerialNumber!")
+                validCertificate = false
+            } else {
+                Log.info("CRL Check: Valid SerialNumber!")
+            }
         }
         
-        if crlStatus.contains(serialNumber) {
-            Log.info("CRL contains serialnumber!")
-            return false
-        }
-        
-        Log.debug("SSL Certificate is validated against CRL")
-        
-        return true
+        // Item not in CRL
+        return validCertificate
     }
     
     func downloadSSLCertificate(url: String) -> String? {
+        let certPath = "\(Bash.projectPath)/var/www/\(hostName).pem"
         Log.debug("HostName: \(hostName)")
         Log.debug("CertPath: \(certPath)")
         
@@ -97,7 +113,51 @@ public class CRLChecker {
         return true
     }
     
+    func getCRLUri(certPath: String) -> String? {
+        let getCrLCommand = "openssl x509 -in \(certPath) -noout -text | grep crl"
+        
+        // Example Result:
+        // URI:http://crl.managedpki.com/KPNBVPKIoverheidOrganisatieServerCAG3/LatestCRL.crl
+        
+        if let crlUri = executeSSLCommando(getCrLCommand){
+            return crlUri
+                .replacingOccurrences(of: " ", with: "")
+                .replacingOccurrences(of: "URI:", with: "|")
+                .replacingOccurrences(of: "\n", with: "")
+        }
+
+        Log.error("Could NOT get CRL uri!")
+        return nil
+    }
+    
+    func getCRL(uri: String) -> String? {
+        let split = uri.split(separator: "/")
+        let crlFile = String(split.dropLast().last!) + String(split.last!)
+        let path = "\(Bash.projectPath)/var/bash/\(crlFile)"
+        Log.debug("CRL Path: \(path)")
+        if FileManager.default.fileExists(atPath: path) {
+            Log.info("Cached CRL from disk.")
+            return crlFile
+        }
+        
+        return downloadCRL(uri: uri)
+    }
+    
+    func downloadCRL(uri: String) -> String? {
+        let split = uri.split(separator: "/")
+        let crlFile = String(split.dropLast().last!) + String(split.last!)
+        
+        if let _ = executeSSLCommando("wget -O \(Bash.projectPath)/var/bash/\(crlFile) \(uri)") {
+            // NOTE: This command does not return anything except empty characters
+            return crlFile
+        }
+
+        Log.error("Download CRL NOT executed!")
+        return nil
+    }
+    
+    
     func executeSSLCommando(_ commando: String) -> String? {
         return bash.execute(commandName: commando)
     }
-}
+
