@@ -21,9 +21,9 @@ public class CRLChecker {
         return String(url.split(separator: "/").first!)
     }
     
-    var crlPath : String {
-        "\(bashPath)/\(hostName).crl"
-    }
+//    var crlPath : String {
+//        "\(bashPath)/\(hostName).crl"
+//    }
     
     init(url: String) {
         self.url = url
@@ -50,7 +50,7 @@ public class CRLChecker {
             Log.debug("CRL: \(crl)")
             
             // 3. Download CRL
-            guard let _ = getCRL(uri: crl) else {
+            guard let crlPath = getCRL(uri: crl) else {
                 Log.error("No CRL to download...")
                 return
             }
@@ -86,7 +86,7 @@ public class CRLChecker {
     }
     
     func downloadSSLCertificate(url: String) -> String? {
-        let certPath = "\(Bash.projectPath)/var/www/\(hostName).pem"
+        let certPath = "\(bashPath)/crt/\(hostName).pem"
         Log.debug("HostName: \(hostName)")
         Log.debug("CertPath: \(certPath)")
         
@@ -133,7 +133,7 @@ public class CRLChecker {
     func getCRL(uri: String) -> String? {
         let split = uri.split(separator: "/")
         let crlFile = String(split.dropLast().last!) + String(split.last!)
-        let path = "\(Bash.projectPath)/var/bash/\(crlFile)"
+        let path = "\(bashPath)/crl/\(crlFile)"
         Log.debug("CRL Path: \(path)")
         if FileManager.default.fileExists(atPath: path) {
             Log.info("Cached CRL from disk.")
@@ -147,7 +147,7 @@ public class CRLChecker {
         let split = uri.split(separator: "/")
         let crlFile = String(split.dropLast().last!) + String(split.last!)
         
-        if let _ = executeSSLCommando("wget -O \(Bash.projectPath)/var/bash/\(crlFile) \(uri)") {
+        if let _ = executeSSLCommando("wget -O \(bashPath)/crl/\(crlFile) \(uri)") {
             // NOTE: This command does not return anything except empty characters
             return crlFile
         }
@@ -160,4 +160,5 @@ public class CRLChecker {
     func executeSSLCommando(_ commando: String) -> String? {
         return bash.execute(commandName: commando)
     }
+
 }
