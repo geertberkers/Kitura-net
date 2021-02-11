@@ -160,4 +160,4 @@ public class CRLChecker {
     func executeSSLCommando(_ commando: String) -> String? {
         return bash.execute(commandName: commando)
     }
-
+}
