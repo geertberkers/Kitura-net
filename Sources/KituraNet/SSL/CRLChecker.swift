@@ -1,5 +1,5 @@
 //
-//  OCSPChecker.swift
+//  CRLChecker.swift
 //  KituraNet
 //
 //  Created by Geert Berkers on 03/10/2019.
@@ -20,10 +20,6 @@ public class CRLChecker {
     var hostName: String {
         return String(url.split(separator: "/").first!)
     }
-    
-//    var crlPath : String {
-//        "\(bashPath)/\(hostName).crl"
-//    }
     
     init(url: String) {
         self.url = url
@@ -137,7 +133,7 @@ public class CRLChecker {
         Log.debug("CRL Path: \(path)")
         if FileManager.default.fileExists(atPath: path) {
             Log.info("Cached CRL from disk.")
-            return crlFile
+            return path
         }
         
         return downloadCRL(uri: uri)
@@ -146,10 +142,11 @@ public class CRLChecker {
     func downloadCRL(uri: String) -> String? {
         let split = uri.split(separator: "/")
         let crlFile = String(split.dropLast().last!) + String(split.last!)
+        let path = "\(bashPath)/crl/\(crlFile)"
         
         if let _ = executeSSLCommando("wget -O \(bashPath)/crl/\(crlFile) \(uri)") {
             // NOTE: This command does not return anything except empty characters
-            return crlFile
+            return path
         }
 
         Log.error("Download CRL NOT executed!")
